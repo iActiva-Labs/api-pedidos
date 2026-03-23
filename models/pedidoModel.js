@@ -13,25 +13,17 @@ const formatearPedido = (pedido) => {
     'SELECT * FROM lineas_pedido WHERE pedido_id = ?'
   ).all(pedido.id);
 
-  // Determinar el descuento máximo del pedido
-  let maxDescuento = 0;
-  for (const linea of lineas) {
-    const descuento = calcularDescuento(linea.cantidad);
-    if (descuento > maxDescuento) {
-      maxDescuento = descuento;
-    }
-  }
-
   const lineasFormateadas = lineas.map((linea) => {
     const producto = productoModel.findById(linea.producto_id);
-    const subtotal = linea.cantidad * linea.precio_unitario * (1 - maxDescuento);
+    const descuento = calcularDescuento(linea.cantidad);
+    const subtotal = linea.cantidad * linea.precio_unitario * (1 - descuento);
     return {
       id: linea.id,
       producto_id: linea.producto_id,
       producto: producto ? producto.nombre : 'Desconocido',
       cantidad: linea.cantidad,
       precio_unitario: linea.precio_unitario,
-      descuento: maxDescuento,
+      descuento,
       subtotal: Math.round(subtotal * 100) / 100,
     };
   });
@@ -74,20 +66,12 @@ const crear = (clienteId, lineas) => {
     }
   }
 
-  // Determinar descuento del pedido
-  let maxDescuento = 0;
-  for (const linea of lineas) {
-    const descuento = calcularDescuento(linea.cantidad);
-    if (descuento > maxDescuento) {
-      maxDescuento = descuento;
-    }
-  }
-
-  // Calcular total con descuento
+  // Calcular total con descuento por línea
   let total = 0;
   for (const linea of lineas) {
     const producto = productoModel.findById(linea.producto_id);
-    total += producto.precio * linea.cantidad * (1 - maxDescuento);
+    const descuento = calcularDescuento(linea.cantidad);
+    total += producto.precio * linea.cantidad * (1 - descuento);
   }
   total = Math.round(total * 100) / 100;
 
