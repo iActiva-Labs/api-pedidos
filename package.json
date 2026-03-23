@@ -1,0 +1,13 @@
+{
+  "name": "api-pedidos",
+  "version": "1.0.0",
+  "description": "API REST de gestión de pedidos",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "express": "^4.21.0"
+  }
+}
