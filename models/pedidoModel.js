@@ -2,20 +2,37 @@ const db = require('../db');
 const productoModel = require('./productoModel');
 const clienteModel = require('./clienteModel');
 
+const calcularDescuento = (cantidad) => {
+  if (cantidad > 50) return 0.15;
+  if (cantidad > 10) return 0.05;
+  return 0;
+};
+
 const formatearPedido = (pedido) => {
   const lineas = db.prepare(
     'SELECT * FROM lineas_pedido WHERE pedido_id = ?'
   ).all(pedido.id);
 
+  // Determinar el descuento máximo del pedido
+  let maxDescuento = 0;
+  for (const linea of lineas) {
+    const descuento = calcularDescuento(linea.cantidad);
+    if (descuento > maxDescuento) {
+      maxDescuento = descuento;
+    }
+  }
+
   const lineasFormateadas = lineas.map((linea) => {
     const producto = productoModel.findById(linea.producto_id);
+    const subtotal = linea.cantidad * linea.precio_unitario * (1 - maxDescuento);
     return {
       id: linea.id,
       producto_id: linea.producto_id,
       producto: producto ? producto.nombre : 'Desconocido',
       cantidad: linea.cantidad,
       precio_unitario: linea.precio_unitario,
-      subtotal: linea.cantidad * linea.precio_unitario,
+      descuento: maxDescuento,
+      subtotal: Math.round(subtotal * 100) / 100,
     };
   });
 
@@ -44,8 +61,7 @@ const findById = (id) => {
 };
 
 const crear = (clienteId, lineas) => {
-  // Validar stock y calcular total
-  let total = 0;
+  // Validar stock
   for (const linea of lineas) {
     const producto = productoModel.findById(linea.producto_id);
     if (!producto) {
@@ -56,8 +72,24 @@ const crear = (clienteId, lineas) => {
         `Stock insuficiente para ${producto.nombre}. Disponible: ${producto.stock}, solicitado: ${linea.cantidad}`
       );
     }
-    total += producto.precio * linea.cantidad;
   }
+
+  // Determinar descuento del pedido
+  let maxDescuento = 0;
+  for (const linea of lineas) {
+    const descuento = calcularDescuento(linea.cantidad);
+    if (descuento > maxDescuento) {
+      maxDescuento = descuento;
+    }
+  }
+
+  // Calcular total con descuento
+  let total = 0;
+  for (const linea of lineas) {
+    const producto = productoModel.findById(linea.producto_id);
+    total += producto.precio * linea.cantidad * (1 - maxDescuento);
+  }
+  total = Math.round(total * 100) / 100;
 
   // Insertar pedido
   const result = db.prepare(
